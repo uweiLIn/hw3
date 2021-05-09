@@ -163,6 +163,50 @@ int PredictGesture(float* output) {
 
   return this_predict;
 }
+
+void detect () {
+    double init_angle;
+    while (1) {
+        if (measure == 0 && flag2 == 0) {
+            myled3.write(1); 
+            int k = 0;
+            while (k < 10) {
+                BSP_ACCELERO_AccGetXYZ(DataXYZ2);
+                printf("%d, %d, %d\n", DataXYZ2[0], DataXYZ2[1], DataXYZ2[2]);
+                vector[0] += DataXYZ2[0]; 
+                vector[1] += DataXYZ2[1];
+                vector[2] += DataXYZ2[2];
+                k++;
+            }
+            vector[0] = vector[0] /10; 
+            vector[1] = vector[1] /10; 
+            vector[2] = vector[2] /10; 
+            init_angle = atan(vector[0]/vector[2]);
+            measure = 1;
+            myled3.write(0); 
+        }
+        if (flag2 == 0) {
+            BSP_ACCELERO_AccGetXYZ(DataXYZ1);
+           
+            vectorvalue = DataXYZ1[0]*DataXYZ2[0] + DataXYZ1[1]*DataXYZ2[1] + DataXYZ1[2]*DataXYZ2[2];
+            vectorvalue = vectorvalue / sqrt(DataXYZ1[0]*DataXYZ1[0] + DataXYZ1[1]*DataXYZ1[1] + DataXYZ1[2]*DataXYZ1[2]);
+            vectorvalue = vectorvalue / sqrt(DataXYZ2[0]*DataXYZ2[0] + DataXYZ2[1]*DataXYZ2[1] + DataXYZ2[2]*DataXYZ2[2]);
+            vectorvalue = acos(vectorvalue);
+            vectorvalue = vectorvalue/ M_PI * 180;
+           
+            uLCD.locate(2,2);
+            uLCD.printf("%3d",vectorvalue);
+            if(vectorvalue > threshold_angle){
+                printf("angle is %d: %d\n",num,vectorvalue);
+                num++;
+                if(num > 10) {
+                    flag3 = false;
+                    num = 1;
+                }
+            }
+            ThisThread::sleep_for(100ms);
+        }
+    }
 void mqtt() {
 
     wifi = WiFiInterface::get_default_instance();
@@ -238,50 +282,40 @@ void mqtt() {
     printf("Successfully closed!\n");
 
 }
-void detect () {
-    double init_angle;
-    while (1) {
-        if (measure == 0 && flag2 == 0) {
-            myled3.write(1); 
-            int k = 0;
-            while (k < 10) {
-                BSP_ACCELERO_AccGetXYZ(DataXYZ2);
-                printf("%d, %d, %d\n", DataXYZ2[0], DataXYZ2[1], DataXYZ2[2]);
-                vector[0] += DataXYZ2[0]; 
-                vector[1] += DataXYZ2[1];
-                vector[2] += DataXYZ2[2];
-                k++;
-            }
-            vector[0] = vector[0] /10; 
-            vector[1] = vector[1] /10; 
-            vector[2] = vector[2] /10; 
-            init_angle = atan(vector[0]/vector[2]);
-            measure = 1;
-            myled3.write(0); 
-        }
-        if (flag2 == 0) {
-            BSP_ACCELERO_AccGetXYZ(DataXYZ1);
-           
-            vectorvalue = DataXYZ1[0]*DataXYZ2[0] + DataXYZ1[1]*DataXYZ2[1] + DataXYZ1[2]*DataXYZ2[2];
-            vectorvalue = vectorvalue / sqrt(DataXYZ1[0]*DataXYZ1[0] + DataXYZ1[1]*DataXYZ1[1] + DataXYZ1[2]*DataXYZ1[2]);
-            vectorvalue = vectorvalue / sqrt(DataXYZ2[0]*DataXYZ2[0] + DataXYZ2[1]*DataXYZ2[1] + DataXYZ2[2]*DataXYZ2[2]);
-            vectorvalue = acos(vectorvalue);
-            vectorvalue = vectorvalue/ M_PI * 180;
-           
-            uLCD.locate(2,2);
-            uLCD.printf("%3d",vectorvalue);
-            if(vectorvalue > threshold_angle){
-                printf("angle is %d: %d\n",num,vectorvalue);
-                num++;
-                if(num > 10) {
-                    flag3 = false;
-                    num = 1;
-                }
-            }
-            ThisThread::sleep_for(100ms);
-        }
+
+void messageArrived(MQTT::MessageData& md) {
+    MQTT::Message &message = md.message;
+    ThisThread::sleep_for(1000ms);
+    char payload[300];
+    sprintf(payload, " %.*s\r\n", message.payloadlen, (char*)message.payload);
+    printf(payload);
+    ++arrivedcount;
+}
+
+void publish_message(MQTT::Client<MQTTNetwork, Countdown>* client) {
+    message_num++;
+    MQTT::Message message;
+    char buff[100];
+    if (flag1 == 0){
+        sprintf(buff, "2,%d", threshold_angle);
+    } else if (flag2 == 0){
+        sprintf(buff, "2,%d", vectorvalue);
     }
-void ML(){
+    message.qos = MQTT::QOS0;
+    message.retained = false;
+    message.dup = false;
+    //message.payload = (void*) buff;
+ 
+    message.payload = (void*) buff;
+    message.payloadlen = strlen(buff) + 1;
+    int rc = client->publish(topic, message);
+}
+
+void close_mqtt() {
+    closed = true;
+}
+
+void ML() {
 
     bool should_clear_buffer = false;
     bool got_data = false;
@@ -381,36 +415,7 @@ void ML(){
     }
 }
 
-void messageArrived(MQTT::MessageData& md) {
-    MQTT::Message &message = md.message;
-    ThisThread::sleep_for(1000ms);
-    char payload[300];
-    sprintf(payload, " %.*s\r\n", message.payloadlen, (char*)message.payload);
-    printf(payload);
-    ++arrivedcount;
-}
 
-void publish_message(MQTT::Client<MQTTNetwork, Countdown>* client) {
-    message_num++;
-    MQTT::Message message;
-    char buff[100];
-    if (flag1 == 0){
-        sprintf(buff, "2,%d", threshold_angle);
-    } else if (flag2 == 0){
-        sprintf(buff, "2,%d", vectorvalue);
-    }
-    message.qos = MQTT::QOS0;
-    message.retained = false;
-    message.dup = false;
- 
-    message.payload = (void*) buff;
-    message.payloadlen = strlen(buff) + 1;
-    int rc = client->publish(topic, message);
-}
-
-void close_mqtt() {
-    closed = true;
-}
 
 
 

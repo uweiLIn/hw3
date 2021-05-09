@@ -277,6 +277,7 @@ void detect () {
                     flag3 = false;
                     num = 1;
                 }
+                
             }
             ThisThread::sleep_for(100ms);
         }

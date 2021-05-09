@@ -258,7 +258,7 @@ void detect () {
             init_angle = atan(vector[0]/vector[2]);
             measure = 1;
             myled3.write(0); 
-        }/**
+        }
         if (flag2 == 0) {
             BSP_ACCELERO_AccGetXYZ(DataXYZ1);
            
@@ -280,7 +280,7 @@ void detect () {
             }
             ThisThread::sleep_for(100ms);
         }
-    }*/
+    }
 void ML(){
 
     bool should_clear_buffer = false;

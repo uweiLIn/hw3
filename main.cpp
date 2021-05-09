@@ -1,14 +1,13 @@
 #include "mbed.h"
-#include "mbed_rpc.h"
 #include "accelerometer_handler.h"
+#include "mbed_rpc.h"
+#include "uLCD_4DGL.h"
 #include "config.h"
 #include "magic_wand_model_data.h"
-#include "uLCD_4DGL.h"
 #include "stm32l475e_iot01_accelero.h"
 #include "MQTTNetwork.h"
 #include "MQTTmbed.h"
 #include "MQTTClient.h"
-
 
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/micro/kernels/micro_ops.h"
